@@ -12,6 +12,11 @@ void mult(double ** a, double ** b, double ** res, int r, int c){
 }
 
 void print(double ** a, int r, int c){
+
+  printf("Printing first 5 rows and 5 columns");
+  int r1 = r;
+  int c1 = c;
+
   r = r > 5 ? 5 : r;
   c = c > 5 ? 5 : c;
 
@@ -22,6 +27,10 @@ void print(double ** a, int r, int c){
     }
     printf("\n");
   }
+  if(r1 > 5 || c1 > 5) {
+    printf("... [%d x %d]\n", r1, c1);
+  }
+
   printf("\n");
 }
 
@@ -67,11 +76,14 @@ int main(int argc, char * argv[]){
     }
   }
 
+  printf("Matrix a\n");
   print(a, r, c);
+  printf("Matrix b\n");
   print(b, r, c);
 
-    mult(a, b, res, r, c);
+  mult(a, b, res, r, c);
 
+  printf("Matrix res\n");
   print(res, r, c);
 
   freeMatrix(a, r);
