@@ -570,7 +570,7 @@ for i in "${analysis_types[@]}"
 do
   echo "${i}.json"
   echo "${i}-fitted.json"
-  call_fit $i.json $i-fitted.json $progress $progress_bandwidth $fit_count $id $repo $repo_name $start_time $analysis_file
+  call_fit $i.json $i-fitted.json $progress $progress_bandwidth $fit_count $id $repo $repo_name "$start_time" $analysis_file
 done
 
 # time serial
