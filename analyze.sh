@@ -45,7 +45,9 @@ call_fit() {
   local start_time=$9
   local analysis_file=${10}
 
-  fit.py --in-file "${1}" --out-file "${2}"
+#  fit.py --in-file "${1}" --out-file "${2}" --format csv
+  fit-multivar.py --data "${in_file}" --model "${in_file%.*}.pkl" --visualization "${in_file%.*}.png"
+  predict.py --model "${in_file%.*}.pkl" --data "${in_file}" --format json --output "${out_file}" --output-header
 
   progress=`echo "scale=1; p=$progress; bw=$progress_bandwidth; l=$fit_count; p + (bw/l)" | bc -l`
 
@@ -113,7 +115,7 @@ rm -f $time_serial_analytics_file $time_parallel_analytics_file $time_parallel_s
 
 echo "cleanup done"
 
-readarray -t iva_arr  < $iva_data_file
+{ read; readarray -t iva_arr; } < $iva_data_file
 readarray -t core_arr < $core_count_file
 
 echo "read array files"
@@ -531,32 +533,84 @@ for e_core in "${energy_parallel[@]}"; do
   energyup+=(`echo "scale=4;$e_1/$e_core" | bc`)
 done
 
-jo -p iva=$(jo name=$iva_name values=$(jo -a ${iva[@]})) \
-measurements=$(jo -a ${time_serial[@]}) > time-serial.json
-jo -p iva=$(jo name=core values=$(jo -a ${core[@]})) \
-measurements=$(jo -a ${time_parallel[@]}) > time-parallel.json
-jo -p iva=$(jo name=core values=$(jo -a ${core[@]})) \
-measurements=$(jo -a ${time_parallel_slow[@]}) > time-parallel-slow.json
-jo -p iva=$(jo name=$iva_name values=$(jo -a ${iva[@]})) \
-measurements=$(jo -a ${space_serial[@]}) > space-serial.json
-jo -p iva=$(jo name=core values=$(jo -a ${core[@]})) \
-measurements=$(jo -a ${space_parallel[@]}) > space-parallel.json
-jo -p iva=$(jo name=$iva_name values=$(jo -a ${iva[@]})) \
-measurements=$(jo -a ${power_serial[@]}) > power-serial.json
-jo -p iva=$(jo name=core values=$(jo -a ${core[@]})) \
-measurements=$(jo -a ${power_parallel[@]}) > power-parallel.json
-jo -p iva=$(jo name=$iva_name values=$(jo -a ${iva[@]})) \
-measurements=$(jo -a ${energy_serial[@]}) > energy-serial.json
-jo -p iva=$(jo name=core values=$(jo -a ${core[@]})) \
-measurements=$(jo -a ${energy_parallel[@]}) > energy-parallel.json
-jo -p iva=$(jo name=core values=$(jo -a ${core[@]})) \
-measurements=$(jo -a ${speedup[@]}) > speedup.json
-jo -p iva=$(jo name=core values=$(jo -a ${core[@]})) \
-measurements=$(jo -a ${freeup[@]}) > freeup.json
-jo -p iva=$(jo name=core values=$(jo -a ${core[@]})) \
-measurements=$(jo -a ${powerup[@]}) > powerup.json
-jo -p iva=$(jo name=core values=$(jo -a ${core[@]})) \
-measurements=$(jo -a ${energyup[@]}) > energyup.json
+# Generate CSV files for fit.py
+# time-serial.csv
+echo "$iva_name,time" > time-serial.csv
+for i in "${!iva[@]}"; do
+  echo "${iva[$i]},${time_serial[$i]}" >> time-serial.csv
+done
+
+# time-parallel.csv
+echo "core,time" > time-parallel.csv
+for i in "${!core[@]}"; do
+  echo "${core[$i]},${time_parallel[$i]}" >> time-parallel.csv
+done
+
+# time-parallel-slow.csv
+echo "core,time" > time-parallel-slow.csv
+for i in "${!core[@]}"; do
+  echo "${core[$i]},${time_parallel_slow[$i]}" >> time-parallel-slow.csv
+done
+
+# space-serial.csv
+echo "$iva_name,memory" > space-serial.csv
+for i in "${!iva[@]}"; do
+  echo "${iva[$i]},${space_serial[$i]}" >> space-serial.csv
+done
+
+# space-parallel.csv
+echo "core,memory" > space-parallel.csv
+for i in "${!core[@]}"; do
+  echo "${core[$i]},${space_parallel[$i]}" >> space-parallel.csv
+done
+
+# power-serial.csv
+echo "$iva_name,power" > power-serial.csv
+for i in "${!iva[@]}"; do
+  echo "${iva[$i]},${power_serial[$i]}" >> power-serial.csv
+done
+
+# power-parallel.csv
+echo "core,power" > power-parallel.csv
+for i in "${!core[@]}"; do
+  echo "${core[$i]},${power_parallel[$i]}" >> power-parallel.csv
+done
+
+# energy-serial.csv
+echo "$iva_name,energy" > energy-serial.csv
+for i in "${!iva[@]}"; do
+  echo "${iva[$i]},${energy_serial[$i]}" >> energy-serial.csv
+done
+
+# energy-parallel.csv
+echo "core,energy" > energy-parallel.csv
+for i in "${!core[@]}"; do
+  echo "${core[$i]},${energy_parallel[$i]}" >> energy-parallel.csv
+done
+
+# speedup.csv
+echo "core,time" > speedup.csv
+for i in "${!core[@]}"; do
+  echo "${core[$i]},${speedup[$i]}" >> speedup.csv
+done
+
+# freeup.csv
+echo "core,memory" > freeup.csv
+for i in "${!core[@]}"; do
+  echo "${core[$i]},${freeup[$i]}" >> freeup.csv
+done
+
+# powerup.csv
+echo "core,power" > powerup.csv
+for i in "${!core[@]}"; do
+  echo "${core[$i]},${powerup[$i]}" >> powerup.csv
+done
+
+# energyup.csv
+echo "core,energy" > energyup.csv
+for i in "${!core[@]}"; do
+  echo "${core[$i]},${energyup[$i]}" >> energyup.csv
+done
 
 if check_abort $repo_path; then exit 2; fi
 
@@ -568,9 +622,9 @@ analysis_types=('time-serial' 'time-parallel' 'space-serial' 'space-parallel' 'p
 
 for i in "${analysis_types[@]}"
 do
-  echo "${i}.json"
+  echo "${i}.csv"
   echo "${i}-fitted.json"
-  call_fit $i.json $i-fitted.json $progress $progress_bandwidth $fit_count $id $repo $repo_name "$start_time" $analysis_file
+  call_fit $i.csv $i-fitted.json $progress $progress_bandwidth $fit_count $id $repo $repo_name "$start_time" $analysis_file
 done
 
 # time serial
