@@ -1,70 +1,107 @@
+#include <thpool.h>
+#include <pthread.h>
+#include <stdlib.h>
+
+// Global threadpool for parallel execution
+static threadpool global_thpool = NULL;
+static int num_threads = 4;
+
+// Initialize global threadpool
+void init_global_threadpool() {
+    if (global_thpool == NULL) {
+        global_thpool = thpool_init(num_threads);
+    }
+}
+
+// Cleanup global threadpool
+void cleanup_global_threadpool() {
+    if (global_thpool != NULL) {
+        thpool_destroy(global_thpool);
+        global_thpool = NULL;
+    }
+}
+
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <unistd.h>
-#include <thmgr.h>
-// ---- thread management code start ----
+typedef struct {
+    int thread_id;
+    int start;
+    int end;
+    double** a;
+    double** b;
+    int c;
+    int r;
+    int s;
+    double** res;
+} ThreadData_mult_line5_0;
 
-int num_threads;
-threadpool thpool;
+void thread_function_mult_line5_0(void* arg) {
+    ThreadData_mult_line5_0* thread_data = (ThreadData_mult_line5_0*)arg;
 
-typedef struct PData {
-  double ** a;
-  double ** b;
-  double ** res;
-  int       r;
-  int       c;
-  int       rStart;
-  int       rEnd;
-} PData;
+    double** a = thread_data->a;
+    double** b = thread_data->b;
+    int c = thread_data->c;
+    int r = thread_data->r;
+    int s = thread_data->s;
+    double** res = thread_data->res;
 
-void mult(double ** a, double ** b, double ** res, int r, int c, int rStart, int rEnd);
-
-void mult_worker(void * data){
-  PData * d = (PData *)data;
-  mult(d->a, d->b, d->res, d->r, d->c, d->rStart, d->rEnd);
-}
-
-void mult_parallel(double ** a, double ** b, double ** res, int r, int c){
-
-  PData* row_data = (PData*)malloc(num_threads * sizeof(PData));
-  int rows_per_thread = r / num_threads;
-  int remaining_rows = r % num_threads;
-
-  for(int i=0; i<num_threads; i++){
-    row_data[i].a      = a;
-    row_data[i].b      = b;
-    row_data[i].res    = res;
-    row_data[i].r      = r;
-    row_data[i].c      = c;
-    row_data[i].rStart = i * rows_per_thread;
-    row_data[i].rEnd   = (i+1) * rows_per_thread;
-
-    if(i == num_threads - 1){
-      row_data[i].rEnd += remaining_rows;
+    for (int i = thread_data->start; i < thread_data->end; i++) {
+        for(int j=0;j<c;j++){
+            for(int k=0;k<r;k++){
+                res[i][j] += a[i][k] * b[k][j];
+            }
+        }
     }
 
-    thpool_add_work(thpool, *mult_worker, &row_data[i]);
-  }
-
-  thpool_wait(thpool);
-
-  free(row_data);
+    for (int i = thread_data->start; i < thread_data->end; i++) {
+        for(int j=0;j<c;j++){
+            for(int k=0;k<s;k++){
+                res[i][j] += a[i][k] * b[k][j];
+            }
+        }
+    }
 }
 
-// ---- thread management code end ----
+void mult(double ** a, double ** b, double ** res, int r, int c, int s){
+  {
+    // Parallel execution using global thread pool with num_threads threads
+    // Loop bound variable: r
 
-void mult(double ** a, double ** b, double ** res, int r, int c, int rStart, int rEnd){
-  for(int i=rStart;i<rEnd;i++){
-    for(int j=0;j<c;j++){
-      for(int k=0;k<r;k++){
-        res[i][j] += a[i][k] * b[k][j];
-      }
+    int total_iterations = r;
+    int chunk_size = total_iterations / num_threads;
+    if (chunk_size == 0) chunk_size = 1;
+
+    // Allocate array of thread data structures
+    ThreadData_mult_line5_0* thread_data_array = malloc(num_threads * sizeof(ThreadData_mult_line5_0));
+
+    for (int t = 0; t < num_threads; t++) {
+        ThreadData_mult_line5_0* thread_data = &thread_data_array[t];
+        thread_data->thread_id = t;
+        thread_data->start = t * chunk_size;
+        thread_data->end = (t == num_threads - 1) ? total_iterations : (t + 1) * chunk_size;
+        thread_data->a = a;
+        thread_data->b = b;
+        thread_data->c = c;
+        thread_data->r = r;
+        thread_data->s = s;
+        thread_data->res = res;
+        if (thread_data->start < total_iterations) {
+            thpool_add_work(global_thpool, thread_function_mult_line5_0, thread_data);
+        }
     }
+
+    thpool_wait(global_thpool);
+    free(thread_data_array);
   }
 }
 
 void print(double ** a, int r, int c){
+
+  printf("Printing first 5 rows and 5 columns");
+  int r1 = r;
+  int c1 = c;
+
   r = r > 5 ? 5 : r;
   c = c > 5 ? 5 : c;
 
@@ -75,6 +112,10 @@ void print(double ** a, int r, int c){
     }
     printf("\n");
   }
+  if(r1 > 5 || c1 > 5) {
+    printf("... [%d x %d]\n", r1, c1);
+  }
+
   printf("\n");
 }
 
@@ -93,31 +134,46 @@ void freeMatrix(double ** m, int r){
   free(m);
 }
 
-int main_worker(int argc, char * argv[]){
+typedef struct {
+    int thread_id;
+    int start;
+    int end;
+    double** a;
+    double** b;
+    int c;
+    int r;
+    int s;
+    double** res;
+} ThreadData_main_line71_0;
 
-  if(argc < 3){
-    printf("Usage: %s <row count> <column count> <num threads>\n", argv[0]);
-    return 1;
+void thread_function_main_line71_0(void* arg) {
+    ThreadData_main_line71_0* thread_data = (ThreadData_main_line71_0*)arg;
+
+    double** a = thread_data->a;
+    double** b = thread_data->b;
+    int c = thread_data->c;
+    int r = thread_data->r;
+    double** res = thread_data->res;
+
+    for (int i = thread_data->start; i < thread_data->end; i++) {
+        for(int j=0;j<c;j++){
+            a[i][j] = (double)(i + j);
+            b[i][j] = (double)(i + j);
+            res[i][j] = 0;
+        }
+    }
+}
+
+int main(int argc, char * argv[]){
+
+  if(argc < 4){
+    printf("Usage: main <row count> <column count> <size>\n");
+    exit(1);
   }
-
-  // Set number of threads (default to number of CPU cores)
-  if(argc > 3) {
-    num_threads = atoi(argv[3]);
-  } else {
-    num_threads = sysconf(_SC_NPROCESSORS_ONLN);
-  }
-
-  // job id
-  if(argc <= 4) {
-    return 1;
-  }
-
-  // Get thread pool
-  char * jid = argv[4];
-  thpool = thpool_get_shared(jid);
 
   int r  = atoi(argv[1]);
   int c  = atoi(argv[2]);
+  int s  = atoi(argv[3]);
 
   double ** a   = allocateMatrix(r, c);
   double ** b   = allocateMatrix(r, c);
@@ -125,28 +181,55 @@ int main_worker(int argc, char * argv[]){
 
   double result    = 0.0;
 
-  printf("Input: row = %d, col = %d, num threads = %d\n", r, c, num_threads);
+  printf("Input: row = %d, col = %d, size = %d\n", r, c, s);
 
   // init data
-  for(int i=0;i<r;i++){
-    for(int j=0;j<c;j++){
-      a[i][j] = (double)(i + j);
-      b[i][j] = (double)(i + j);
-      res[i][j] = 0;
+  {
+    // Parallel execution using global thread pool with num_threads threads
+    // Loop bound variable: r
+
+    int total_iterations = r;
+    int chunk_size = total_iterations / num_threads;
+    if (chunk_size == 0) chunk_size = 1;
+
+    // Allocate array of thread data structures
+    ThreadData_main_line71_0* thread_data_array = malloc(num_threads * sizeof(ThreadData_main_line71_0));
+
+    for (int t = 0; t < num_threads; t++) {
+        ThreadData_main_line71_0* thread_data = &thread_data_array[t];
+        thread_data->thread_id = t;
+        thread_data->start = t * chunk_size;
+        thread_data->end = (t == num_threads - 1) ? total_iterations : (t + 1) * chunk_size;
+        thread_data->a = a;
+        thread_data->b = b;
+        thread_data->c = c;
+        thread_data->r = r;
+        thread_data->s = s;
+        thread_data->res = res;
+        if (thread_data->start < total_iterations) {
+            thpool_add_work(global_thpool, thread_function_main_line71_0, thread_data);
+        }
     }
+
+    thpool_wait(global_thpool);
+    free(thread_data_array);
   }
 
+  printf("Matrix a\n");
   print(a, r, c);
+  printf("Matrix b\n");
   print(b, r, c);
 
-  mult_parallel(a, b, res, r, c);
+  mult(a, b, res, r, c, s);
 
+  printf("Matrix res\n");
   print(res, r, c);
 
   freeMatrix(a, r);
   freeMatrix(b, r);
   freeMatrix(res, r);
 
+  cleanup_global_threadpool();
+
   return 0;
 }
-

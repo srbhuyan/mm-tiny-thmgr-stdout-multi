@@ -1,10 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void mult(double ** a, double ** b, double ** res, int r, int c){
+void mult(double ** a, double ** b, double ** res, int r, int c, int s){
   for(int i=0;i<r;i++){
     for(int j=0;j<c;j++){
       for(int k=0;k<r;k++){
+        res[i][j] += a[i][k] * b[k][j];
+      }
+    }
+  }
+
+  for(int i=0;i<r;i++){
+    for(int j=0;j<c;j++){
+      for(int k=0;k<s;k++){
         res[i][j] += a[i][k] * b[k][j];
       }
     }
@@ -51,13 +59,14 @@ void freeMatrix(double ** m, int r){
 
 int main(int argc, char * argv[]){
 
-  if(argc < 3){
-    printf("Usage: main <row count> <column count>\n");
+  if(argc < 4){
+    printf("Usage: main <row count> <column count> <size>\n");
     exit(1);
   }
 
   int r  = atoi(argv[1]);
   int c  = atoi(argv[2]);
+  int s  = atoi(argv[3]);
 
   double ** a   = allocateMatrix(r, c);
   double ** b   = allocateMatrix(r, c);
@@ -65,7 +74,7 @@ int main(int argc, char * argv[]){
 
   double result    = 0.0;
 
-  printf("Input: row = %d, col = %d\n", r, c);
+  printf("Input: row = %d, col = %d, size = %d\n", r, c, s);
 
   // init data
   for(int i=0;i<r;i++){
@@ -81,7 +90,7 @@ int main(int argc, char * argv[]){
   printf("Matrix b\n");
   print(b, r, c);
 
-  mult(a, b, res, r, c);
+  mult(a, b, res, r, c, s);
 
   printf("Matrix res\n");
   print(res, r, c);

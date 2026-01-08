@@ -126,17 +126,19 @@ while IFS=, read -r i p;
 do power_profile+=($p);
 done < $power_profile_file
 
-iva=()
 core=()
-
-for i in ${iva_arr[@]}
-do
-  iva+=($i)
-done
 
 for i in ${core_arr[@]}
 do
   core+=($i)
+done
+
+# Extract first column from iva_arr for analytics JSON outputs
+iva_first=()
+for line in "${iva_arr[@]}"
+do
+  IFS=, read -ra cols <<< "$line"
+  iva_first+=("${cols[0]}")
 done
 
 # generate compile_commands.json
@@ -157,11 +159,11 @@ echo "$json_output" > compile_commands.json
 echo "JSON data written to compile_commands.json"
 
 # Generate parallel analysis
-/usr/bin/clang-18 -g -emit-llvm -S -o main_original.ll main_original.c
-/usr/bin/opt-18 -load-pass-plugin=GanymedeAnalysisPlugin.so -passes="ganymede-analysis" main_original.ll
+#/usr/bin/clang-18 -g -emit-llvm -S -o main_original.ll main_original.c
+#/usr/bin/opt-18 -load-pass-plugin=GanymedeAnalysisPlugin.so -passes="ganymede-analysis" main_original.ll
 
 # Generate standalone parallel code
-/usr/bin/ganymede-codegen --analysis-file=parallelization_analysis.json --codegen-type=standalone main_original.c > main.c
+#/usr/bin/ganymede-codegen --analysis-file=parallelization_analysis.json --codegen-type=standalone main_original.c > main.c
 
 # HACK - START
 # HACK - fusion currently supports a standalone threadpool
@@ -169,9 +171,9 @@ echo "JSON data written to compile_commands.json"
 
 # Generate thread manager parallel code
 #/usr/bin/ganymede-codegen --analysis-file=parallelization_analysis.json --codegen-type=thmgr main_original.c > main_service.c
-cp main.c main_service.c
-sed -i 's/main(int/main_worker(int/' main_service.c
-sed -i 's/atoi(argv\[argc-1\])/atoi(argv[argc-2])/' main_service.c
+#cp main.c main_service.c
+#sed -i 's/main(int/main_worker(int/' main_service.c
+#sed -i 's/atoi(argv\[argc-1\])/atoi(argv[argc-2])/' main_service.c
 
 # HACK -END
 
@@ -210,15 +212,22 @@ progress_bandwidth=10
 
 echo "starting.."
 
-for i in ${iva[@]}
+for iva_line in "${iva_arr[@]}"
 do
+  # Parse CSV line into array
+  IFS=, read -ra iva_cols <<< "$iva_line"
+
+  # Build arguments: first column twice, then remaining columns
+  first_col="${iva_cols[0]}"
+  remaining_cols="${iva_cols[@]:1}"
+
   # time
   start=`date +%s.%N`;\
-  ./$algo_orig $i $i;\
+  ./$algo_orig $first_col $first_col $remaining_cols;\
   end=`date +%s.%N`;\
   time_serial+=(`printf '%.8f' $( echo "$end - $start" | bc -l )`);
 
-  progress=`echo "scale=1; p=$progress; bw=$progress_bandwidth; l=${#iva[@]}; p + (bw/l)" | bc -l`
+  progress=`echo "scale=1; p=$progress; bw=$progress_bandwidth; l=${#iva_arr[@]}; p + (bw/l)" | bc -l`
 
   echo "{\"id\":\"$id\",\"repo\":\"$repo\",\"repoName\":\"$repo_name\",\"startTime\":\"$start_time\",\
   \"endTime\":\"\",\"status\":\"In progress\",\"progress\":{\"currentStep\":\"Serial Time Measurement\",\
@@ -232,14 +241,21 @@ if check_abort $repo_path; then exit 2; fi
 progress_bandwidth=10
 
 count=1
-for i in ${iva[@]}
+for iva_line in "${iva_arr[@]}"
 do
+  # Parse CSV line into array
+  IFS=, read -ra iva_cols <<< "$iva_line"
+
+  # Build arguments: first column twice, then remaining columns
+  first_col="${iva_cols[0]}"
+  remaining_cols="${iva_cols[@]:1}"
+
   # memory
-  heaptrack -o "$algo.$count" ./$algo_orig $i $i;\
+  heaptrack -o "$algo.$count" ./$algo_orig $first_col $first_col $remaining_cols;\
   space_serial+=(`heaptrack --analyze "$algo.$count.zst"  | grep "peak heap memory consumption" | awk '{print $5}'`);
   count=$((count+1))
 
-  progress=`echo "scale=1; p=$progress; bw=$progress_bandwidth; l=${#iva[@]}; p + (bw/l)" | bc -l`
+  progress=`echo "scale=1; p=$progress; bw=$progress_bandwidth; l=${#iva_arr[@]}; p + (bw/l)" | bc -l`
 
   echo "{\"id\":\"$id\",\"repo\":\"$repo\",\"repoName\":\"$repo_name\",\"startTime\":\"$start_time\",\
   \"endTime\":\"\",\"status\":\"In progress\",\"progress\":{\"currentStep\":\"Serial Memory Measurement\",\
@@ -253,12 +269,12 @@ if check_abort $repo_path; then exit 2; fi
 # power - serial
 progress_bandwidth=10
 
-for i in ${iva[@]}
+for iva_line in "${iva_arr[@]}"
 do
   # power
   power_serial+=(${power_profile[0]})
 
-  progress=`echo "scale=1; p=$progress; bw=$progress_bandwidth; l=${#iva[@]}; p + (bw/l)" | bc -l`
+  progress=`echo "scale=1; p=$progress; bw=$progress_bandwidth; l=${#iva_arr[@]}; p + (bw/l)" | bc -l`
 
   echo "{\"id\":\"$id\",\"repo\":\"$repo\",\"repoName\":\"$repo_name\",\"startTime\":\"$start_time\",\
   \"endTime\":\"\",\"status\":\"In progress\",\"progress\":{\"currentStep\":\"Serial Power Measurement\",\
@@ -270,16 +286,16 @@ done
 if check_abort $repo_path; then exit 2; fi
 
 # energy - serial
-for i in "${!iva[@]}"
+for i in "${!iva_arr[@]}"
 do
   # energy
   energy_serial+=(`echo "tm=${time_serial[i]};pw=${power_serial[i]};tm * pw" | bc -l`);
 done
 
 # serial measurement file
-for i in "${!iva[@]}"
+for i in "${!iva_arr[@]}"
 do
-  echo "${iva[i]},${time_serial[i]},${space_serial[i]},${power_serial[i]},${energy_serial[i]}" >> "$serial_measurement"
+  echo "${iva_arr[i]},${time_serial[i]},${space_serial[i]},${power_serial[i]},${energy_serial[i]}" >> "$serial_measurement"
 done
 
 # parallel run
@@ -378,7 +394,7 @@ do
 {
   "repo": "$repo_name",
   "core": $i,
-  "argv": ["main", "$iva_data", "$iva_data", "$i"]
+  "argv": ["main", "$iva_data", "$iva_data", "$iva_data", "$i"]
 }
 EOF
 )
@@ -536,81 +552,111 @@ done
 # Generate CSV files for fit.py
 # time-serial.csv
 echo "$iva_name,time" > time-serial.csv
-for i in "${!iva[@]}"; do
-  echo "${iva[$i]},${time_serial[$i]}" >> time-serial.csv
+for i in "${!iva_arr[@]}"; do
+  # Extract all columns from the row for multivariate fitting
+  echo "${iva_arr[$i]},${time_serial[$i]}" >> time-serial.csv
 done
+# Sort by time column (last column)
+(head -n 1 time-serial.csv && tail -n +2 time-serial.csv | sort -t',' -k2 -n) > time-serial.csv.tmp && mv time-serial.csv.tmp time-serial.csv
 
 # time-parallel.csv
 echo "core,time" > time-parallel.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${time_parallel[$i]}" >> time-parallel.csv
 done
+# Sort by time column (last column)
+(head -n 1 time-parallel.csv && tail -n +2 time-parallel.csv | sort -t',' -k2 -n) > time-parallel.csv.tmp && mv time-parallel.csv.tmp time-parallel.csv
 
 # time-parallel-slow.csv
 echo "core,time" > time-parallel-slow.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${time_parallel_slow[$i]}" >> time-parallel-slow.csv
 done
+# Sort by time column (last column)
+(head -n 1 time-parallel-slow.csv && tail -n +2 time-parallel-slow.csv | sort -t',' -k2 -n) > time-parallel-slow.csv.tmp && mv time-parallel-slow.csv.tmp time-parallel-slow.csv
 
 # space-serial.csv
 echo "$iva_name,memory" > space-serial.csv
-for i in "${!iva[@]}"; do
-  echo "${iva[$i]},${space_serial[$i]}" >> space-serial.csv
+for i in "${!iva_arr[@]}"; do
+  # Extract all columns from the row for multivariate fitting
+  echo "${iva_arr[$i]},${space_serial[$i]}" >> space-serial.csv
 done
+# Sort by memory column (last column)
+(head -n 1 space-serial.csv && tail -n +2 space-serial.csv | sort -t',' -k2 -n) > space-serial.csv.tmp && mv space-serial.csv.tmp space-serial.csv
 
 # space-parallel.csv
 echo "core,memory" > space-parallel.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${space_parallel[$i]}" >> space-parallel.csv
 done
+# Sort by memory column (last column)
+(head -n 1 space-parallel.csv && tail -n +2 space-parallel.csv | sort -t',' -k2 -n) > space-parallel.csv.tmp && mv space-parallel.csv.tmp space-parallel.csv
 
 # power-serial.csv
 echo "$iva_name,power" > power-serial.csv
-for i in "${!iva[@]}"; do
-  echo "${iva[$i]},${power_serial[$i]}" >> power-serial.csv
+for i in "${!iva_arr[@]}"; do
+  # Extract all columns from the row for multivariate fitting
+  echo "${iva_arr[$i]},${power_serial[$i]}" >> power-serial.csv
 done
+# Sort by power column (last column)
+(head -n 1 power-serial.csv && tail -n +2 power-serial.csv | sort -t',' -k2 -n) > power-serial.csv.tmp && mv power-serial.csv.tmp power-serial.csv
 
 # power-parallel.csv
 echo "core,power" > power-parallel.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${power_parallel[$i]}" >> power-parallel.csv
 done
+# Sort by power column (last column)
+(head -n 1 power-parallel.csv && tail -n +2 power-parallel.csv | sort -t',' -k2 -n) > power-parallel.csv.tmp && mv power-parallel.csv.tmp power-parallel.csv
 
 # energy-serial.csv
 echo "$iva_name,energy" > energy-serial.csv
-for i in "${!iva[@]}"; do
-  echo "${iva[$i]},${energy_serial[$i]}" >> energy-serial.csv
+for i in "${!iva_arr[@]}"; do
+  # Extract all columns from the row for multivariate fitting
+  echo "${iva_arr[$i]},${energy_serial[$i]}" >> energy-serial.csv
 done
+# Sort by energy column (last column)
+(head -n 1 energy-serial.csv && tail -n +2 energy-serial.csv | sort -t',' -k2 -n) > energy-serial.csv.tmp && mv energy-serial.csv.tmp energy-serial.csv
 
 # energy-parallel.csv
 echo "core,energy" > energy-parallel.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${energy_parallel[$i]}" >> energy-parallel.csv
 done
+# Sort by energy column (last column)
+(head -n 1 energy-parallel.csv && tail -n +2 energy-parallel.csv | sort -t',' -k2 -n) > energy-parallel.csv.tmp && mv energy-parallel.csv.tmp energy-parallel.csv
 
 # speedup.csv
 echo "core,time" > speedup.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${speedup[$i]}" >> speedup.csv
 done
+# Sort by time column (last column)
+(head -n 1 speedup.csv && tail -n +2 speedup.csv | sort -t',' -k2 -n) > speedup.csv.tmp && mv speedup.csv.tmp speedup.csv
 
 # freeup.csv
 echo "core,memory" > freeup.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${freeup[$i]}" >> freeup.csv
 done
+# Sort by memory column (last column)
+(head -n 1 freeup.csv && tail -n +2 freeup.csv | sort -t',' -k2 -n) > freeup.csv.tmp && mv freeup.csv.tmp freeup.csv
 
 # powerup.csv
 echo "core,power" > powerup.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${powerup[$i]}" >> powerup.csv
 done
+# Sort by power column (last column)
+(head -n 1 powerup.csv && tail -n +2 powerup.csv | sort -t',' -k2 -n) > powerup.csv.tmp && mv powerup.csv.tmp powerup.csv
 
 # energyup.csv
 echo "core,energy" > energyup.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${energyup[$i]}" >> energyup.csv
 done
+# Sort by energy column (last column)
+(head -n 1 energyup.csv && tail -n +2 energyup.csv | sort -t',' -k2 -n) > energyup.csv.tmp && mv energyup.csv.tmp energyup.csv
 
 if check_abort $repo_path; then exit 2; fi
 
@@ -634,7 +680,7 @@ noextn="${time_serial_analytics_file%.*}"
 time_serial_analytics_file_d="$noextn"."$extn"
 
 jo -p \
-iva=$(jo data=$(jo -a ${iva[@]}) name=$iva_name unit=size) \
+iva=$(jo data=$(jo -a ${iva_first[@]}) name=$iva_name unit=size) \
 measurements=$(jo data=$(jo -a ${time_serial[@]}) name=time unit=seconds) \
 fitted=$(jo data="`jq '.fitted' time-serial-fitted.json`" name=time unit=seconds) \
 unoptimized=$(jo data=$(jo -a) name=time unit=seconds) \
@@ -664,7 +710,7 @@ noextn="${space_serial_analytics_file%.*}"
 space_serial_analytics_file_d="$noextn"."$extn"
 
 jo -p \
-iva=$(jo data=$(jo -a ${iva[@]}) name=$iva_name unit=size) \
+iva=$(jo data=$(jo -a ${iva_first[@]}) name=$iva_name unit=size) \
 measurements=$(jo data=$(jo -a ${space_serial[@]}) name=memory unit=MB) \
 unoptimized=$(jo data=$(jo -a) name=memory unit=MB) \
 fitted=$(jo data="`jq '.fitted' space-serial-fitted.json`" name=memory unit=MB) \
@@ -694,7 +740,7 @@ noextn="${power_serial_analytics_file%.*}"
 power_serial_analytics_file_d="$noextn"."$extn"
 
 jo -p \
-iva=$(jo data=$(jo -a ${iva[@]}) name=$iva_name unit=size) \
+iva=$(jo data=$(jo -a ${iva_first[@]}) name=$iva_name unit=size) \
 measurements=$(jo data=$(jo -a ${power_serial[@]}) name=power unit="watts") \
 unoptimized=$(jo data=$(jo -a) name=power unit="watts") \
 fitted=$(jo data="`jq '.fitted' power-serial-fitted.json`" name=power unit="watts") \
@@ -724,7 +770,7 @@ noextn="${energy_serial_analytics_file%.*}"
 energy_serial_analytics_file_d="$noextn"."$extn"
 
 jo -p \
-iva=$(jo data=$(jo -a ${iva[@]}) name=$iva_name unit=size) \
+iva=$(jo data=$(jo -a ${iva_first[@]}) name=$iva_name unit=size) \
 measurements=$(jo data=$(jo -a ${energy_serial[@]}) name=energy unit="watt-seconds") \
 unoptimized=$(jo data=$(jo -a) name=energy unit="watt-seconds") \
 fitted=$(jo data="`jq '.fitted' energy-serial-fitted.json`" name=energy unit="watt-seconds") \
