@@ -164,7 +164,11 @@ void thread_function_main_line71_0(void* arg) {
     }
 }
 
-int main(int argc, char * argv[]){
+int main_worker(int argc, char * argv[]){
+
+  // Get thread pool and num_threads
+  num_threads = atoi(argv[argc-2]);
+  init_global_threadpool();
 
   if(argc < 4){
     printf("Usage: main <row count> <column count> <size>\n");
