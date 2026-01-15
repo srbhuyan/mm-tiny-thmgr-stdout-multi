@@ -649,40 +649,24 @@ echo "core,time" > speedup.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${speedup[$i]}" >> speedup.csv
 done
-# Sort by time column (last column)
-FILE="speedup.csv"
-NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
-(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # freeup.csv
 echo "core,memory" > freeup.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${freeup[$i]}" >> freeup.csv
 done
-# Sort by memory column (last column)
-FILE="freeup.csv"
-NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
-(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # powerup.csv
 echo "core,power" > powerup.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${powerup[$i]}" >> powerup.csv
 done
-# Sort by power column (last column)
-FILE="powerup.csv"
-NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
-(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # energyup.csv
 echo "core,energy" > energyup.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${energyup[$i]}" >> energyup.csv
 done
-# Sort by energy column (last column)
-FILE="energyup.csv"
-NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
-(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 if check_abort $repo_path; then exit 2; fi
 
