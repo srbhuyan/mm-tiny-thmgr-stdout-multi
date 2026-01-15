@@ -551,13 +551,15 @@ done
 
 # Generate CSV files for fit.py
 # time-serial.csv
-echo "$iva_name,time" > time-serial.csv
+echo "$iva_name,size,time" > time-serial.csv
 for i in "${!iva_arr[@]}"; do
   # Extract all columns from the row for multivariate fitting
   echo "${iva_arr[$i]},${time_serial[$i]}" >> time-serial.csv
 done
 # Sort by time column (last column)
-(head -n 1 time-serial.csv && tail -n +2 time-serial.csv | sort -t',' -k2 -n) > time-serial.csv.tmp && mv time-serial.csv.tmp time-serial.csv
+FILE="time-serial.csv"
+NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
+(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # time-parallel.csv
 echo "core,time" > time-parallel.csv
@@ -565,7 +567,9 @@ for i in "${!core[@]}"; do
   echo "${core[$i]},${time_parallel[$i]}" >> time-parallel.csv
 done
 # Sort by time column (last column)
-(head -n 1 time-parallel.csv && tail -n +2 time-parallel.csv | sort -t',' -k2 -n) > time-parallel.csv.tmp && mv time-parallel.csv.tmp time-parallel.csv
+FILE="time-parallel.csv"
+NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
+(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # time-parallel-slow.csv
 echo "core,time" > time-parallel-slow.csv
@@ -573,16 +577,20 @@ for i in "${!core[@]}"; do
   echo "${core[$i]},${time_parallel_slow[$i]}" >> time-parallel-slow.csv
 done
 # Sort by time column (last column)
-(head -n 1 time-parallel-slow.csv && tail -n +2 time-parallel-slow.csv | sort -t',' -k2 -n) > time-parallel-slow.csv.tmp && mv time-parallel-slow.csv.tmp time-parallel-slow.csv
+FILE="${1:-time-parallel-slow.csv}"
+NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
+(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # space-serial.csv
-echo "$iva_name,memory" > space-serial.csv
+echo "$iva_name,size,memory" > space-serial.csv
 for i in "${!iva_arr[@]}"; do
   # Extract all columns from the row for multivariate fitting
   echo "${iva_arr[$i]},${space_serial[$i]}" >> space-serial.csv
 done
 # Sort by memory column (last column)
-(head -n 1 space-serial.csv && tail -n +2 space-serial.csv | sort -t',' -k2 -n) > space-serial.csv.tmp && mv space-serial.csv.tmp space-serial.csv
+FILE="space-serial.csv"
+NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
+(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # space-parallel.csv
 echo "core,memory" > space-parallel.csv
@@ -590,16 +598,20 @@ for i in "${!core[@]}"; do
   echo "${core[$i]},${space_parallel[$i]}" >> space-parallel.csv
 done
 # Sort by memory column (last column)
-(head -n 1 space-parallel.csv && tail -n +2 space-parallel.csv | sort -t',' -k2 -n) > space-parallel.csv.tmp && mv space-parallel.csv.tmp space-parallel.csv
+FILE="space-parallel.csv"
+NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
+(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # power-serial.csv
-echo "$iva_name,power" > power-serial.csv
+echo "$iva_name,size,power" > power-serial.csv
 for i in "${!iva_arr[@]}"; do
   # Extract all columns from the row for multivariate fitting
   echo "${iva_arr[$i]},${power_serial[$i]}" >> power-serial.csv
 done
 # Sort by power column (last column)
-(head -n 1 power-serial.csv && tail -n +2 power-serial.csv | sort -t',' -k2 -n) > power-serial.csv.tmp && mv power-serial.csv.tmp power-serial.csv
+FILE="power-serial.csv"
+NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
+(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # power-parallel.csv
 echo "core,power" > power-parallel.csv
@@ -607,16 +619,20 @@ for i in "${!core[@]}"; do
   echo "${core[$i]},${power_parallel[$i]}" >> power-parallel.csv
 done
 # Sort by power column (last column)
-(head -n 1 power-parallel.csv && tail -n +2 power-parallel.csv | sort -t',' -k2 -n) > power-parallel.csv.tmp && mv power-parallel.csv.tmp power-parallel.csv
+FILE="power-parallel.csv"
+NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
+(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # energy-serial.csv
-echo "$iva_name,energy" > energy-serial.csv
+echo "$iva_name,size,energy" > energy-serial.csv
 for i in "${!iva_arr[@]}"; do
   # Extract all columns from the row for multivariate fitting
   echo "${iva_arr[$i]},${energy_serial[$i]}" >> energy-serial.csv
 done
 # Sort by energy column (last column)
-(head -n 1 energy-serial.csv && tail -n +2 energy-serial.csv | sort -t',' -k2 -n) > energy-serial.csv.tmp && mv energy-serial.csv.tmp energy-serial.csv
+FILE="energy-serial.csv"
+NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
+(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # energy-parallel.csv
 echo "core,energy" > energy-parallel.csv
@@ -624,7 +640,9 @@ for i in "${!core[@]}"; do
   echo "${core[$i]},${energy_parallel[$i]}" >> energy-parallel.csv
 done
 # Sort by energy column (last column)
-(head -n 1 energy-parallel.csv && tail -n +2 energy-parallel.csv | sort -t',' -k2 -n) > energy-parallel.csv.tmp && mv energy-parallel.csv.tmp energy-parallel.csv
+FILE="energy-parallel.csv"
+NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
+(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # speedup.csv
 echo "core,time" > speedup.csv
@@ -632,7 +650,9 @@ for i in "${!core[@]}"; do
   echo "${core[$i]},${speedup[$i]}" >> speedup.csv
 done
 # Sort by time column (last column)
-(head -n 1 speedup.csv && tail -n +2 speedup.csv | sort -t',' -k2 -n) > speedup.csv.tmp && mv speedup.csv.tmp speedup.csv
+FILE="speedup.csv"
+NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
+(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # freeup.csv
 echo "core,memory" > freeup.csv
@@ -640,7 +660,9 @@ for i in "${!core[@]}"; do
   echo "${core[$i]},${freeup[$i]}" >> freeup.csv
 done
 # Sort by memory column (last column)
-(head -n 1 freeup.csv && tail -n +2 freeup.csv | sort -t',' -k2 -n) > freeup.csv.tmp && mv freeup.csv.tmp freeup.csv
+FILE="freeup.csv"
+NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
+(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # powerup.csv
 echo "core,power" > powerup.csv
@@ -648,7 +670,9 @@ for i in "${!core[@]}"; do
   echo "${core[$i]},${powerup[$i]}" >> powerup.csv
 done
 # Sort by power column (last column)
-(head -n 1 powerup.csv && tail -n +2 powerup.csv | sort -t',' -k2 -n) > powerup.csv.tmp && mv powerup.csv.tmp powerup.csv
+FILE="powerup.csv"
+NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
+(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # energyup.csv
 echo "core,energy" > energyup.csv
@@ -656,7 +680,9 @@ for i in "${!core[@]}"; do
   echo "${core[$i]},${energyup[$i]}" >> energyup.csv
 done
 # Sort by energy column (last column)
-(head -n 1 energyup.csv && tail -n +2 energyup.csv | sort -t',' -k2 -n) > energyup.csv.tmp && mv energyup.csv.tmp energyup.csv
+FILE="energyup.csv"
+NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
+(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 if check_abort $repo_path; then exit 2; fi
 
