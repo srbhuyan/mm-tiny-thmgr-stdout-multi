@@ -423,7 +423,7 @@ for i in ${core[@]}
 do
   # time using direct execution
   start=`date +%s.%N`;\
-  ./$algo $iva_data $iva_data $i;\
+  ./$algo $iva_data $iva_data $iva_data $i;\
   end=`date +%s.%N`;\
   time_parallel_slow+=(`printf '%.8f' $( echo "$end - $start" | bc -l )`);
 
@@ -444,7 +444,7 @@ count=1
 for i in ${core[@]}
 do
   # memory
-  heaptrack -o "$algo.$count" ./$algo $iva_data $iva_data $i;\
+  heaptrack -o "$algo.$count" ./$algo $iva_data $iva_data $iva_data $i;\
   space_parallel+=(`heaptrack --analyze "$algo.$count.zst"  | grep "peak heap memory consumption" | awk '{print $5}'`);
   count=$((count+1))
 
@@ -566,20 +566,12 @@ echo "core,time" > time-parallel.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${time_parallel[$i]}" >> time-parallel.csv
 done
-# Sort by time column (last column)
-FILE="time-parallel.csv"
-NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
-(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # time-parallel-slow.csv
 echo "core,time" > time-parallel-slow.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${time_parallel_slow[$i]}" >> time-parallel-slow.csv
 done
-# Sort by time column (last column)
-FILE="${1:-time-parallel-slow.csv}"
-NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
-(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # space-serial.csv
 echo "$iva_name,size,memory" > space-serial.csv
@@ -597,10 +589,6 @@ echo "core,memory" > space-parallel.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${space_parallel[$i]}" >> space-parallel.csv
 done
-# Sort by memory column (last column)
-FILE="space-parallel.csv"
-NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
-(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # power-serial.csv
 echo "$iva_name,size,power" > power-serial.csv
@@ -618,10 +606,6 @@ echo "core,power" > power-parallel.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${power_parallel[$i]}" >> power-parallel.csv
 done
-# Sort by power column (last column)
-FILE="power-parallel.csv"
-NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
-(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # energy-serial.csv
 echo "$iva_name,size,energy" > energy-serial.csv
@@ -639,10 +623,6 @@ echo "core,energy" > energy-parallel.csv
 for i in "${!core[@]}"; do
   echo "${core[$i]},${energy_parallel[$i]}" >> energy-parallel.csv
 done
-# Sort by energy column (last column)
-FILE="energy-parallel.csv"
-NCOLS=$(head -1 "$FILE" | awk -F',' '{print NF}')
-(head -n 1 "$FILE" && tail -n +2 "$FILE" | sort -t',' -k"$NCOLS" -n) > "${FILE}.tmp" && mv "${FILE}.tmp" "$FILE"
 
 # speedup.csv
 echo "core,time" > speedup.csv
