@@ -46,6 +46,13 @@ call_fit() {
   local analysis_file=${10}
 
 #  fit.py --in-file "${1}" --out-file "${2}" --format csv
+  pickle="${in_file%.*}.pkl"
+  img="${in_file%.*}.png"
+
+  echo "pwd = $PWD"
+  echo "pickle = $pickle"
+  echo "image = $img"
+
   fit-multivar.py --data "${in_file}" --model "${in_file%.*}.pkl" --visualization "${in_file%.*}.png"
   predict.py --model "${in_file%.*}.pkl" --data "${in_file}" --format json --output "${out_file}" --output-header
 
